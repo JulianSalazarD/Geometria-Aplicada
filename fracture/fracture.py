@@ -1,9 +1,10 @@
 import numpy as np
-import matplotlib.pyplot as plt
 import plotly.graph_objects as go
 
 
 class Fracture:
+    """
+        Clase para cargar datos de fracturas, calcular propiedades y visualizar en 3D utilizando Plotly       """
 
     def __init__(self):
         self.M = None
@@ -16,6 +17,11 @@ class Fracture:
         self.traces = None
 
     def load(self, filename):
+        """
+        Carga los datos de la fractura desde un archivo de texto.
+
+        :param filename: Nombre del archivo de texto.
+        """
 
         dataset = []
         with open(filename, 'r') as file:
@@ -25,6 +31,10 @@ class Fracture:
         self.M = np.array(dataset)
 
     def load_matrix(self):
+        """
+        Calcula la matriz A (matriz de covarianza) de una matriz M y
+        los autovalores y autovectores
+        """
 
         self.A = np.dot(self.M.T, self.M)
 
@@ -33,6 +43,9 @@ class Fracture:
         self.autovalues, self.autovectors = np.linalg.eig(self.A)
 
     def get_traces(self):
+        """
+        Calcula los vértices de la caja que encierra la fractura (matriz m)
+        """
         max_p = np.amax(np.dot((self.M - self.mp), self.autovectors), axis=0)
         min_p = np.amin(np.dot((self.M - self.mp), self.autovectors), axis=0)
 
@@ -44,7 +57,6 @@ class Fracture:
                     points = np.array([max_p[0] if i else min_p[0],
                                        max_p[1] if j else min_p[1],
                                        max_p[2] if k else min_p[2]])
-                    # Transformar el punto de vuelta al espacio original
                     box.append(self.mp + np.dot(points, self.autovectors.T))
 
         vertex = [
@@ -64,7 +76,11 @@ class Fracture:
             self.traces.append(trace)
 
     def print_plotly(self):
+        """
+        Representacion de los datos en 3D utilizando plotly
+        """
 
+        # dibujar cja
         self.fig = go.Figure(data=self.traces)
 
         # Agregar puntos a la figura
@@ -89,28 +105,10 @@ class Fracture:
         self.fig.show()
 
     def mainloop(self):
+        """
+        Método principal para cargar datos, calcular propiedades y visualizar datos.
+        """
         self.load("FRAC0006_nrIter27.txt")
         self.load_matrix()
         self.get_traces()
         self.print_plotly()
-
-    def print_matplotlib(self):
-
-        self.fig = plt.figure()
-        self.axis = self.fig.add_subplot(111, projection='3d')
-        # Graficar los puntos
-        self.axis.scatter(self.M[:, 0], self.M[:, 1], self.M[:, 2], s=1, label='Points')
-
-        # Graficar los autovectores centrados en el punto promedio
-
-        for i in range(len(self.autovalues)):
-            autovector = self.autovectors[:, i]
-            plt.quiver(self.mp[0], self.mp[1], self.mp[2], autovector[0], autovector[1], autovector[2],
-                       color='r', label=f'Autovector {i + 1}')
-
-        self.axis.set_xlabel('X')
-        self.axis.set_ylabel('Y')
-        self.axis.set_zlabel('Z')
-        plt.axis('equal')
-        self.axis.legend()
-        plt.show()
