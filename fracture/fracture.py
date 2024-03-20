@@ -115,8 +115,6 @@ class Fracture:
             self.axis.plot([ip[0], ep[0]], [ip[1], ep[1]], [ip[2], ep[2]], color='red', linewidth=3,
                            label=f'Autovector {i + 1}')
 
-
-
         self.axis.legend()
         plt.show()
 
@@ -153,7 +151,49 @@ class Fracture:
         plt.show()
 
     def triangularization(self):
-        pass
+        self.fig = plt.figure()
+        self.axis = self.fig.add_subplot(111, projection='3d')
+
+        self.M = self.M[:40]
+
+        points = []
+        for i in range(20, len(self.M) + 1, 20):
+            points.append(np.array(self.M[i - 20:i]))
+
+        points = np.array(points)
+
+        square = []
+        for i in range(0, len(points) - 1):
+            aux = []
+            for j in range(20):
+                if j == 19:
+                    aux.append([points[i][j], points[i + 1][j], points[i + 1][0]])
+                    aux.append([points[i][j], points[i][0], points[i + 1][j]])
+                    # aux.append([points[i][j], points[i][0],
+                    #            points[i + 1][j], points[i + 1][j]])
+                else:
+                    aux.append([points[i][j], points[i + 1][j], points[i + 1][j + 1]])
+                    aux.append([points[i][j], points[i][j + 1], points[i + 1][j]])
+                    # aux.append([points[i][j], points[i][j + 1],
+                    #            points[i + 1][j], points[i + 1][j + 1]])
+                square.append(aux)
+
+        self.axis.scatter(self.M[:, 0], self.M[:, 1], self.M[:, 2], c='brown', s=8, label='points')
+
+        square = np.array(square)
+
+        for a in square:
+            for s in a:
+                self.axis.plot(s[:, 0], s[:, 1], s[:, 2])
+                print(s)
+
+        self.axis.set_xlabel('X')
+        self.axis.set_ylabel('Y')
+        self.axis.set_zlabel('Z')
+
+        # Mostrar el gráfico
+        self.axis.legend()
+        plt.show()
 
     def print_triangles(self):
         # Crear la figura
@@ -195,10 +235,10 @@ class Fracture:
         """
         Método principal para cargar datos, calcular propiedades y visualizar datos.
         """
-        self.load("FRAC0006_nrIter27.txt")
+        self.load("FRAC0003_nrIter4.txt")
         self.load_matrix()
         # self.get_traces()
         # self.print_matplotlib()
-        self.get_box()
-        self.print_point()
-
+        # self.get_box()
+        # self.print_point()
+        self.triangularization()
