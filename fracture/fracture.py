@@ -75,6 +75,9 @@ class Fracture:
         ]
 
     def get_box(self):
+        """
+        Calcula los vértices de la caja que encierra la fractura (matriz m)
+        """
         points = self.M - self.mp
         eigenvalues, eigenvectors = np.linalg.eig(np.cov(points, rowvar=False))
         points = np.dot(points, eigenvectors)
@@ -95,9 +98,6 @@ class Fracture:
         Representación de los datos en 3D utilizando Matplotlib
         """
 
-        self.fig = plt.figure()
-        self.axis = self.fig.add_subplot(111, projection='3d')
-
         # Dibujar caja
         for vert in self.vertex:
             v = np.array(vert)
@@ -115,15 +115,12 @@ class Fracture:
             self.axis.plot([ip[0], ep[0]], [ip[1], ep[1]], [ip[2], ep[2]], color='red', linewidth=3,
                            label=f'Autovector {i + 1}')
 
-        self.axis.legend()
-        plt.show()
-
     def print_point(self):
-        self.fig = plt.figure()
-        self.axis = self.fig.add_subplot(111, projection='3d')
-
+        """
+        Representación de los datos en 3D utilizando Matplotlib
+        """
         self.axis.scatter(self.M[:, 0], self.M[:, 1], self.M[:, 2], c='brown', s=2, label='points')
-        self.axis.scatter(self.mp[0], self.mp[1], self.mp[2], c='b', s=2, label='middle point')
+        # self.axis.scatter(self.mp[0], self.mp[1], self.mp[2], c='b', s=2, label='middle point')
 
         # Graficar autovectores
         # self.axis.quiver(*self.mp, *self.autovectors, color='pink')
@@ -142,97 +139,105 @@ class Fracture:
                 [self.vertex[line[0], 2], self.vertex[line[1], 2]],
                 color='black'
             )
-        self.axis.set_xlabel('X')
-        self.axis.set_ylabel('Y')
-        self.axis.set_zlabel('Z')
-
-        # Mostrar el gráfico
-        self.axis.legend()
-        plt.show()
 
     def triangularization(self):
-        self.fig = plt.figure()
-        self.axis = self.fig.add_subplot(111, projection='3d')
+        """
+         Realizar la triangulación de los puntos, teniento en cuenta que cada 20 puntos se apueden realizar
+         triangulaiones con los siguientes 2o puntos.
 
+        self.tri alamacena la dirección de los puntos que fforman un triangulo
+        """
+
+        points = [p for p in range(20)]
+        self.tri = []
+        size = int(len(self.M) / 20)
+        for i in range(0, size - 1):
+            for j in range(20):
+                if j == 19:
+                    self.tri.append([j + (20 * i), j + (20 * (i + 1)), 0 + (20 * (i + 1))])
+                    self.tri.append([j + (20 * i), 0 + (20 * i), j + (20 * (i + 1))])
+                else:
+                    self.tri.append([j + (20 * i), j + (20 * (i + 1)), (j + 1) + (20 * (i + 1))])
+                    self.tri.append([j + (20 * i), (j + 1) + (20 * i), (j + 1) + (20 * (i + 1))])
+
+        self.tri = np.array(self.tri)
+        """
         points = []
         for i in range(20, len(self.M) + 1, 20):
             points.append(np.array(self.M[i - 20:i]))
 
         points = np.array(points)
 
-        tri = []
+        self.tri = []
         for i in range(0, len(points) - 1):
             for j in range(20):
                 if j == 19:
-                    tri.append([points[i][j], points[i + 1][j], points[i + 1][0]])
-                    tri.append([points[i][j], points[i][0], points[i + 1][j]])
+                    self.tri.append([points[i][j], points[i + 1][j], points[i + 1][0]])
+                    self.tri.append([points[i][j], points[i][0], points[i + 1][j]])
                     # aux.append([points[i][j], points[i][0],
                     #            points[i + 1][j], points[i + 1][j]])
                 else:
-                    tri.append([points[i][j], points[i + 1][j], points[i + 1][j + 1]])
-                    tri.append([points[i][j], points[i][j + 1], points[i + 1][j]])
+                    self.tri.append([points[i][j], points[i + 1][j], points[i + 1][j + 1]])
+                    self.tri.append([points[i][j], points[i][j + 1], points[i + 1][j]])
                     # aux.append([points[i][j], points[i][j + 1],
                     #            points[i + 1][j], points[i + 1][j + 1]])
 
         self.axis.scatter(self.M[:, 0], self.M[:, 1], self.M[:, 2], c='brown', s=8, label='points')
 
-        tri = np.array(tri)
-
-        for s in tri:
-            self.axis.plot(s[:, 0], s[:, 1], s[:, 2])
-
-        self.axis.set_xlabel('X')
-        self.axis.set_ylabel('Y')
-        self.axis.set_zlabel('Z')
-
-        # Mostrar el gráfico
-        self.axis.legend()
-        plt.show()
-
-    def print_triangles(self):
-        # Crear la figura
-        self.fig = plt.figure()
-        self.axis = self.fig.add_subplot(111, projection='3d')
-
-        # Graficar los puntos
-        self.axis.scatter(self.M[:, 0], self.M[:, 1], self.M[:, 2], c='b', marker='o')
-
-        # Graficar las líneas que unen los vértices de los triángulos
-        #
-        # for simplex in self.tri.simplices:
-        #     x = [self.M[simplex[0], 0], self.M[simplex[1], 0], self.M[simplex[2], 0], self.M[simplex[0], 0]]
-        #     y = [self.M[simplex[0], 1], self.M[simplex[1], 1], self.M[simplex[2], 1], self.M[simplex[0], 1]]
-        #     z = [self.M[simplex[0], 2], self.M[simplex[1], 2], self.M[simplex[2], 2], self.M[simplex[0], 2]]
-        #     self.axis.plot(x, y, z, color='r')
-
-        # color = (1, 1, 0, 0.3)
-        # Graficar los triángulos
-        # self.axis.plot_trisurf(self.M[:, 0], self.M[:, 1], self.M[:, 2], triangles=self.tri.simplices, color=color)
-
-        # Mostrar la figura
-        plt.show()
+        self.tri = np.array(self.tri)
+        """
 
     def norm(self):
+        '''
+        sacar la norma de cada triangulo
+        '''
         self.normal = []
-        for simplex in self.tri.simplices:
-            p0, p1, p2, p3 = self.M[simplex]
-            normal_012 = np.cross(p1 - p0, p2 - p0)
-            normal_013 = np.cross(p1 - p0, p3 - p0)
-            normal_023 = np.cross(p2 - p0, p3 - p0)
-            normal_123 = np.cross(p2 - p1, p3 - p1)
+        for triangle in self.tri:
+            p1, p2, p3 = self.M[triangle]
+            v1 = p2 - p1
+            v2 = p3 - p1
+            n = np.cross(v1, v2)
+            self.normal.append(n / np.linalg.norm(n))
 
-            n = (normal_012 + normal_013 + normal_023 + normal_123) / 4.0
-            n = n / np.linalg.norm(n)
-            self.normal.append(n)
+    def print_triangles(self):
+        """
+        graficar triangularizacion
+        :return:
+        """
+        for s in self.tri:
+            triangle = np.array([self.M[s[0]], self.M[s[1]], self.M[s[2]], self.M[s[0]]])
+            self.axis.plot(triangle[:, 0], triangle[:, 1], triangle[:, 2])
+
+    def print_norm(self):
+        """
+        graficar la norma de los triangulos
+        """
+        for i in range(len(self.normal)):
+            mp = np.mean(self.M[self.tri[i]], axis=0)
+            v = 0.1*self.normal[i]
+            x = [mp[0], v[0]]
+            y = [mp[1], v[1]]
+            z = [mp[2], v[2]]
+            self.axis.quiver(mp[0], mp[1], mp[2], v[0], v[1], v[2], color='b')
 
     def mainloop(self):
         """
         Método principal para cargar datos, calcular propiedades y visualizar datos.
         """
+        self.fig = plt.figure()
+        self.axis = self.fig.add_subplot(111, projection='3d')
         self.load("FRAC0006_nrIter27.txt")
         self.load_matrix()
-        # self.get_traces()
-        # self.print_matplotlib()
-        # self.get_box()
-        # self.print_point()
+        self.get_box()
+        self.print_point()
         self.triangularization()
+        self.norm()
+        self.print_triangles()
+        self.print_norm()
+
+        self.axis.set_xlabel('X')
+        self.axis.set_ylabel('Y')
+        self.axis.set_zlabel('Z')
+
+        self.axis.legend()
+        plt.show()
