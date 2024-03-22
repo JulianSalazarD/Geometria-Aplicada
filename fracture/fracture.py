@@ -155,7 +155,7 @@ class Fracture:
             for j in range(20):
                 if j == 19:
                     self.tri.append([j + (20 * i), j + (20 * (i + 1)), 0 + (20 * (i + 1))])
-                    self.tri.append([j + (20 * i), j + (20 * (i + 1)), 0 + (20 * i), ])
+                    self.tri.append([j + (20 * i), 0 + (20 * (i + 1)), 0 + (20 * i)])
                 else:
                     self.tri.append([j + (20 * i), j + (20 * (i + 1)), (j + 1) + (20 * (i + 1))])
                     self.tri.append([j + (20 * i), (j + 1) + (20 * (i + 1)), (j + 1) + (20 * i)])
@@ -245,7 +245,6 @@ class Fracture:
         self.axis.set_zlabel('Z')
 
         self.axis.legend()
-
         plt.xlim(5, 15)
         plt.ylim(-5, 5)
         plt.show()
