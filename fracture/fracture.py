@@ -41,7 +41,7 @@ class Fracture:
         Calcula la matriz A (matriz de covarianza) de una matriz M y
         los autovalores y autovectores
         """
-
+        # self.M = self.M[:60]
         self.A = np.dot(self.M.T, self.M)
 
         self.mp = np.mean(self.M, axis=0)
@@ -155,10 +155,10 @@ class Fracture:
             for j in range(20):
                 if j == 19:
                     self.tri.append([j + (20 * i), j + (20 * (i + 1)), 0 + (20 * (i + 1))])
-                    self.tri.append([j + (20 * i), 0 + (20 * i), j + (20 * (i + 1))])
+                    self.tri.append([j + (20 * i), j + (20 * (i + 1)), 0 + (20 * i), ])
                 else:
                     self.tri.append([j + (20 * i), j + (20 * (i + 1)), (j + 1) + (20 * (i + 1))])
-                    self.tri.append([j + (20 * i), (j + 1) + (20 * i), (j + 1) + (20 * (i + 1))])
+                    self.tri.append([j + (20 * i), (j + 1) + (20 * (i + 1)), (j + 1) + (20 * i)])
 
         self.tri = np.array(self.tri)
         """
@@ -188,9 +188,9 @@ class Fracture:
         """
 
     def norm(self):
-        '''
+        """
         sacar la norma de cada triangulo
-        '''
+        """
         self.normal = []
         for triangle in self.tri:
             p1, p2, p3 = self.M[triangle]
@@ -208,13 +208,17 @@ class Fracture:
             triangle = np.array([self.M[s[0]], self.M[s[1]], self.M[s[2]], self.M[s[0]]])
             self.axis.plot(triangle[:, 0], triangle[:, 1], triangle[:, 2])
 
+    def surface(self):
+        self.axis.plot_trisurf(self.M[:, 0], self.M[:, 1], self.M[:, 2],
+                               triangles=self.tri, color='lightpink')
+
     def print_norm(self):
         """
         graficar la norma de los triangulos
         """
         for i in range(len(self.normal)):
             mp = np.mean(self.M[self.tri[i]], axis=0)
-            v = 0.1*self.normal[i]
+            v = 0.1 * self.normal[i]
             x = [mp[0], v[0]]
             y = [mp[1], v[1]]
             z = [mp[2], v[2]]
@@ -226,13 +230,14 @@ class Fracture:
         """
         self.fig = plt.figure()
         self.axis = self.fig.add_subplot(111, projection='3d')
-        self.load("FRAC0006_nrIter27.txt")
+        self.load("FRAC0003_nrIter4.txt")
         self.load_matrix()
         self.get_box()
         self.print_point()
         self.triangularization()
         self.norm()
         self.print_triangles()
+        # self.surface()
         self.print_norm()
 
         self.axis.set_xlabel('X')
@@ -240,4 +245,7 @@ class Fracture:
         self.axis.set_zlabel('Z')
 
         self.axis.legend()
+
+        plt.xlim(5, 15)
+        plt.ylim(-5, 5)
         plt.show()
