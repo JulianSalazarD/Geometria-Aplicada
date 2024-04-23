@@ -136,7 +136,6 @@ class Fracture:
                 self.color_t.append(color)
         self.color_t = np.array(self.color_t)
         self.tri = np.array(self.tri)
-        print("color: ", len(self.color_t))
 
     def norm(self):
         """
@@ -185,33 +184,76 @@ class Fracture:
             self.axis.quiver(mp[0], mp[1], mp[2], v[0], v[1], v[2], color='b')
 
     def points_in_middle(self, punto, punto_inicio, punto_fin):
+        """
+           Comprueba si un punto está dentro de un rango definido por dos puntos en cada eje.
+
+           Args:
+           - punto: Punto a comprobar.
+           - punto_inicio: Punto inicial del rango.
+           - punto_fin: Punto final del rango.
+
+           Returns:
+           - bool: True si el punto está dentro del rango en todos los ejes, False en caso contrario.
+           """
         dentro_x = (punto_inicio[0] <= punto.x <= punto_fin[0]) or (punto_fin[0] <= punto.x <= punto_inicio[0])
         dentro_y = (punto_inicio[1] <= punto.y <= punto_fin[1]) or (punto_fin[1] <= punto.y <= punto_inicio[1])
         dentro_z = (punto_inicio[2] <= punto.z <= punto_fin[2]) or (punto_fin[2] <= punto.z <= punto_inicio[2])
         return dentro_x and dentro_y and dentro_z
 
     def direction_points(self, punto_inicial, vector_director, distancia):
+        """
+           Calcula un punto final dado un punto inicial, un vector director y una distancia.
+
+           Args:
+           - punto_inicial: Punto inicial.
+           - vector_director: Vector director.
+           - distancia: Distancia desde el punto inicial al punto final.
+
+           Returns:
+           - Punto final calculado.
+           """
         norma_vector = np.linalg.norm(vector_director)
         direccion = vector_director / norma_vector
         punto_final = punto_inicial + distancia * direccion
         return punto_final
 
     def plane_from_points(self):
+        """
+           Calcula los planos a partir de puntos dados y los guarda en la lista.
+        """
         self.caras = []
         points = [[0, 1, 2], [0, 1, 4], [0, 4, 2], [7, 5, 3], [7, 6, 3], [7, 6, 5]]
         points = [[0, 1, 4], [7, 6, 5], [0, 1, 2], [0, 4, 2], [7, 5, 3], [7, 6, 3]]
         for p in points:
             p1, p2, p3 = map(Point3D, (self.vertex[p[0]], self.vertex[p[1]], self.vertex[p[2]]))
             self.caras.append(Plane(p1, p2, p3))
-        # self.caras = self.caras[1:2]
 
     def line_from_point_and_vector(self, point, vector):
+        """
+            Crea una línea a partir de un punto y un vector.
+
+            Args:
+            - point: Punto inicial de la línea.
+            - vector: Vector director de la línea.
+
+            Returns:
+            - Línea creada.
+        """
         point = Point3D(point)
         direction_point = point + Point3D(*vector)
         line = Line3D(point, direction_point)
         return line
 
     def intersection_plane_line(self, line):
+        """
+            Calcula la intersección entre un plano y una línea.
+
+            Args:
+            - line: Línea con la que se calcula la intersección.
+
+            Returns:
+            - Lista de puntos de intersección, si hay alguno, o None en caso contrario.
+        """
         inter = []
         for plane in self.caras:
             intersection = plane.intersection(line)
@@ -225,8 +267,11 @@ class Fracture:
             return None
 
     def intersection(self):
+        """
+        Calcula las intersecciones entre las normales de los triángulos y la caja, y guarda los puntos en la lista
+        inter.
+        """
         self.inter = []
-        aux = 0
         self.plane_from_points()
         for i in range(len(self.normal)):
             mp = np.mean(self.M[self.tri[i]], axis=0)
@@ -234,14 +279,12 @@ class Fracture:
             line = self.line_from_point_and_vector(mp, v)
             op = self.direction_points(mp, v, 1)
             p = self.intersection_plane_line(line)
-            print(aux)
-            aux += 1
+
             for pp in p:
                 if self.points_in_middle(pp[0], mp, op):
                     pp = [pp[0].x, pp[0].y, pp[0].z]
                     self.inter.append(pp)
         self.inter = np.array(self.inter)
-        print("intersec",len(self.inter))
 
     def print_intersection(self):
         self.axis.scatter(self.inter[:, 0], self.inter[:, 1], self.inter[:, 2], color=self.color_t, s=2)
@@ -260,9 +303,9 @@ class Fracture:
         # self.print_point()
         self.triangularization()
         self.norm()
-        self.print_triangles()
+        # self.print_triangles()
         # self.surface()
-        self.print_norm()
+        # self.print_norm()
         # self.box_planes()
         self.intersection()
         self.print_intersection()
