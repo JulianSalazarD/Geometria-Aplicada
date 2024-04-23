@@ -1,7 +1,8 @@
+import random
 import numpy as np
 from matplotlib import use
 import matplotlib.pyplot as plt
-from sympy import symbols, Eq, Point3D, Plane, solve
+from sympy import symbols, Eq, Point3D, Plane, solve, Line3D
 
 use('Qt5Agg')
 
@@ -11,6 +12,8 @@ class Fracture:
         Clase para cargar datos de fracturas, calcular propiedades y visualizar en 3D utilizando Plotly       """
 
     def __init__(self):
+        self.inter = None
+        self.color_t = None
         self.caras = None
         self.vertex = None
         self.normal = None
@@ -23,6 +26,8 @@ class Fracture:
         self.fig = None
         self.traces = None
         self.tri = None
+        self.color_m = None
+        self.size = None
 
     def load(self, filename):
         """
@@ -50,32 +55,6 @@ class Fracture:
 
         self.autovalues, self.autovectors = np.linalg.eig(self.A)
 
-    def get_traces(self):
-        """
-        Calcula los vértices de la caja que encierra la fractura (matriz m)
-        """
-        max_p = np.amax(np.dot((self.M - self.mp), self.autovectors), axis=0)
-        min_p = np.amin(np.dot((self.M - self.mp), self.autovectors), axis=0)
-
-        # Crear vertices y dirección de la caja
-        box = []
-        for i in range(2):
-            for j in range(2):
-                for k in range(2):
-                    points = np.array([max_p[0] if i else min_p[0],
-                                       max_p[1] if j else min_p[1],
-                                       max_p[2] if k else min_p[2]])
-                    box.append(self.mp + np.dot(points, self.autovectors.T))
-
-        self.vertex = [
-            [box[0], box[1], box[3], box[2], box[0]],
-            [box[4], box[5], box[7], box[6], box[4]],
-            [box[0], box[1], box[5], box[4], box[0]],
-            [box[2], box[3], box[7], box[6], box[2]],
-            [box[1], box[3], box[7], box[5], box[1]],
-            [box[0], box[2], box[6], box[4], box[0]]
-        ]
-
     def get_box(self):
         """
         Calcula los vértices de la caja que encierra la fractura (matriz m)
@@ -95,39 +74,30 @@ class Fracture:
         # Transformar los vértices de la caja de vuelta al sistema original
         self.vertex = np.dot(self.vertex, eigenvectors.T) + self.mp
 
-    def print_matplotlib(self):
-        """
-        Representación de los datos en 3D utilizando Matplotlib
-        """
+    def color_points(self):
+        self.color_m = []
+        self.size = int(len(self.M) / 20)
+        for i in range(self.size):
+            r = [random.random(), random.random(), random.random()]
+            self.color_m.append(r)
 
-        # Dibujar caja
-        for vert in self.vertex:
-            v = np.array(vert)
-            x, y, z = v[:, 0], v[:, 1], v[:, 2]
-            self.axis.plot(x, y, z, color='g')
-
-        # Agregar puntos a la figura
-        self.axis.scatter(self.M[:, 0], self.M[:, 1], self.M[:, 2], c='b', s=2, label='points')
-
-        # Graficar autovectores
-        for i in range(len(self.autovalues)):
-            autovector = self.autovectors[:, i]
-            ip = self.mp
-            ep = self.mp + autovector
-            self.axis.plot([ip[0], ep[0]], [ip[1], ep[1]], [ip[2], ep[2]], color='red', linewidth=3,
-                           label=f'Autovector {i + 1}')
+        self.color_m = np.array(self.color_m)
 
     def print_point(self):
         """
         Representación de los datos en 3D utilizando Matplotlib
         """
-        self.axis.scatter(self.M[:, 0], self.M[:, 1], self.M[:, 2], c='brown', s=2, label='points')
+        for i in range(self.size):
+            m = self.M[i * 20:i * 20 + 20]
+            self.axis.scatter(m[:, 0], m[:, 1], m[:, 2], color=self.color_m[i], s=2)
+        # self.axis.scatter(self.M[:, 0], self.M[:, 1], self.M[:, 2], color=(0, 0, 0), s=2, label='points')
         # self.axis.scatter(self.mp[0], self.mp[1], self.mp[2], c='b', s=2, label='middle point')
 
         # Graficar autovectores
         # self.axis.quiver(*self.mp, *self.autovectors, color='pink')
         # self.axis.scatter(self.vertex[:, 0], self.vertex[:, 1], self.vertex[:, 2], color='blue', s=10)
 
+    def build_box(self):
         lines = [
             [0, 1], [0, 2], [0, 4],
             [1, 3], [1, 5], [2, 3],
@@ -149,9 +119,9 @@ class Fracture:
 
         self.tri alamacena la dirección de los puntos que forman un triangulo
         """
+        self.color_t = []
         self.tri = []
-        size = int(len(self.M) / 20)
-        for i in range(0, size - 1):
+        for i in range(0, self.size - 1):
             for j in range(20):
                 if j == 19:
                     self.tri.append([j + (20 * i), j + (20 * (i + 1)), 0 + (20 * (i + 1))])
@@ -160,7 +130,13 @@ class Fracture:
                     self.tri.append([j + (20 * i), j + (20 * (i + 1)), (j + 1) + (20 * (i + 1))])
                     self.tri.append([j + (20 * i), (j + 1) + (20 * (i + 1)), (j + 1) + (20 * i)])
 
+                color = (self.color_m[i] + 2 * self.color_m[i + 1]) / 3
+                self.color_t.append(color)
+                color = (2 * self.color_m[i] + self.color_m[i + 1]) / 3
+                self.color_t.append(color)
+        self.color_t = np.array(self.color_t)
         self.tri = np.array(self.tri)
+        print("color: ", len(self.color_t))
 
     def norm(self):
         """
@@ -174,14 +150,26 @@ class Fracture:
             n = np.cross(v1, v2)
             self.normal.append(n / np.linalg.norm(n))
 
+    def triangles_color(self):
+        self.color_t = []
+        for i in range(self.size - 1):
+            r = (self.color_m[i] + self.color_m[i + 1]) / 2
+            self.color_t.append(r)
+        self.color_t = np.array(self.color_t)
+
     def print_triangles(self):
         """
         graficar triangularizacion
-        :return:
         """
+        for s in range(len(self.tri)):
+            triangle = np.array([self.M[self.tri[s][0]], self.M[self.tri[s][1]], self.M[self.tri[s][2]],
+                                 self.M[self.tri[s][0]]])
+            self.axis.plot(triangle[:, 0], triangle[:, 1], triangle[:, 2], color=self.color_t[s])
+        ''' 
         for s in self.tri:
             triangle = np.array([self.M[s[0]], self.M[s[1]], self.M[s[2]], self.M[s[0]]])
-            self.axis.plot(triangle[:, 0], triangle[:, 1], triangle[:, 2])
+            self.axis.plot(triangle[:, 0], triangle[:, 1], triangle[:, 2], color=self.color_t)
+        '''
 
     def surface(self):
         self.axis.plot_trisurf(self.M[:, 0], self.M[:, 1], self.M[:, 2],
@@ -196,73 +184,10 @@ class Fracture:
             v = 0.1 * self.normal[i]
             self.axis.quiver(mp[0], mp[1], mp[2], v[0], v[1], v[2], color='b')
 
-    def ecuacion_plano(self, p1, p2, p3):
-        v1 = np.array(p2) - np.array(p1)
-        v2 = np.array(p3) - np.array(p1)
-
-        normal = np.cross(v1, v2)
-
-        A, B, C = normal
-
-        D = -np.dot(normal, np.array(p1))
-
-        return f"{A}x + {B}y + {C}z + {D} = 0"
-
-    def eq_box(self, vertices):
-        x, y, z = symbols('x y z')
-
-        x_min = min(v[0] for v in vertices)
-        x_max = max(v[0] for v in vertices)
-        y_min = min(v[1] for v in vertices)
-        y_max = max(v[1] for v in vertices)
-        z_min = min(v[2] for v in vertices)
-        z_max = max(v[2] for v in vertices)
-
-        caras = [
-            Eq(x, x_min),
-            Eq(x, x_max),
-            Eq(y, y_min),
-            Eq(y, y_max),
-            Eq(z, z_min),
-            Eq(z, z_max)
-        ]
-
-        return caras
-
-    def points_in_box(self, punto, vertices_caja):
-        x, y, z = punto
-        x_coords, y_coords, z_coords = zip(*vertices_caja)
-
-        dentro_x = min(x_coords) <= x <= max(x_coords)
-        dentro_y = min(y_coords) <= y <= max(y_coords)
-        dentro_z = min(z_coords) <= z <= max(z_coords)
-
-        return dentro_x and dentro_y and dentro_z
-
-    def box_intersection(self, punto_inicio, direccion):
-        x, y, z, t = symbols('x y z t')
-
-        # Representa el vector como una línea paramétrica
-        linea = [punto_inicio[i] + t * direccion[i] for i in range(3)]
-
-        # Encuentra los puntos de intersección con cada cara
-        intersecciones = []
-        for cara in self.caras:
-            interseccion = solve(cara.subs({x: linea[0], y: linea[1], z: linea[2]}), t)
-            intersecciones.extend(
-                [linea[0].subs(t, t_val), linea[1].subs(t, t_val), linea[2].subs(t, t_val)] for t_val in interseccion if
-                t_val.is_real)
-
-
-        # puntos_interseccion = [punto for punto in intersecciones if self.punto_dentro_de_caja(punto, vertices_caja)]
-        puntos_interseccion = intersecciones
-
-        return puntos_interseccion
-
     def points_in_middle(self, punto, punto_inicio, punto_fin):
-        dentro_x = (punto_inicio[0] <= punto[0] <= punto_fin[0]) or (punto_fin[0] <= punto[0] <= punto_inicio[0])
-        dentro_y = (punto_inicio[1] <= punto[1] <= punto_fin[1]) or (punto_fin[1] <= punto[1] <= punto_inicio[1])
-        dentro_z = (punto_inicio[2] <= punto[2] <= punto_fin[2]) or (punto_fin[2] <= punto[2] <= punto_inicio[2])
+        dentro_x = (punto_inicio[0] <= punto.x <= punto_fin[0]) or (punto_fin[0] <= punto.x <= punto_inicio[0])
+        dentro_y = (punto_inicio[1] <= punto.y <= punto_fin[1]) or (punto_fin[1] <= punto.y <= punto_inicio[1])
+        dentro_z = (punto_inicio[2] <= punto.z <= punto_fin[2]) or (punto_fin[2] <= punto.z <= punto_inicio[2])
         return dentro_x and dentro_y and dentro_z
 
     def direction_points(self, punto_inicial, vector_director, distancia):
@@ -271,43 +196,55 @@ class Fracture:
         punto_final = punto_inicial + distancia * direccion
         return punto_final
 
-    def box_planes(self):
+    def plane_from_points(self):
+        self.caras = []
+        points = [[0, 1, 2], [0, 1, 4], [0, 4, 2], [7, 5, 3], [7, 6, 3], [7, 6, 5]]
+        points = [[0, 1, 4], [7, 6, 5], [0, 1, 2], [0, 4, 2], [7, 5, 3], [7, 6, 3]]
+        for p in points:
+            p1, p2, p3 = map(Point3D, (self.vertex[p[0]], self.vertex[p[1]], self.vertex[p[2]]))
+            self.caras.append(Plane(p1, p2, p3))
+        # self.caras = self.caras[1:2]
 
-        lines = [
-            [0, 1], [0, 2], [0, 4],
-            [1, 3], [1, 5], [2, 3],
-            [2, 6], [3, 7], [4, 5],
-            [4, 6], [5, 7], [6, 7]
-        ]
-        for line in lines:
-            self.axis.plot(
-                [self.vertex[line[0], 0], self.vertex[line[1], 0]],
-                [self.vertex[line[0], 1], self.vertex[line[1], 1]],
-                [self.vertex[line[0], 2], self.vertex[line[1], 2]],
-                color='black'
-            )
+    def line_from_point_and_vector(self, point, vector):
+        point = Point3D(point)
+        direction_point = point + Point3D(*vector)
+        line = Line3D(point, direction_point)
+        return line
 
-        normal = self.normal
-        tri = self.tri
-
-        self.caras = self.eq_box(self.vertex)
-
+    def intersection_plane_line(self, line):
         inter = []
-        for i in range(len(normal)):
-            mp = np.mean(self.M[tri[i]], axis=0)
-            v = normal[i]
-            p = self.box_intersection(mp, v)
-            op = self.direction_points(mp, v, 10)
+        for plane in self.caras:
+            intersection = plane.intersection(line)
+            if len(intersection) == 1:  # Solo hay un punto de intersección
+                # intersection_point = intersection[0]
+                inter.append(intersection)
+                return inter
+        if len(inter) > 0:
+            return inter
+        else:
+            return None
+
+    def intersection(self):
+        self.inter = []
+        aux = 0
+        self.plane_from_points()
+        for i in range(len(self.normal)):
+            mp = np.mean(self.M[self.tri[i]], axis=0)
+            v = self.normal[i]
+            line = self.line_from_point_and_vector(mp, v)
+            op = self.direction_points(mp, v, 1)
+            p = self.intersection_plane_line(line)
+            print(aux)
+            aux += 1
             for pp in p:
-                if self.points_in_middle(pp, mp, op):
-                    inter.append(pp)
-                    self.axis.scatter(pp[0], pp[1], pp[2], c='brown', s=2)
-            #print(p)
-            #inter.append(p)
-            #print(p)
+                if self.points_in_middle(pp[0], mp, op):
+                    pp = [pp[0].x, pp[0].y, pp[0].z]
+                    self.inter.append(pp)
+        self.inter = np.array(self.inter)
+        print("intersec",len(self.inter))
 
-            # self.axis.scatter(p[0][0], p[0][1], p[0][2], c='brown', s=2)
-
+    def print_intersection(self):
+        self.axis.scatter(self.inter[:, 0], self.inter[:, 1], self.inter[:, 2], color=self.color_t, s=2)
 
     def mainloop(self):
         """
@@ -318,19 +255,22 @@ class Fracture:
         self.load("FRAC0003_nrIter4.txt")
         self.load_matrix()
         self.get_box()
+        self.build_box()
+        self.color_points()
         # self.print_point()
         self.triangularization()
         self.norm()
-        # self.print_triangles()
+        self.print_triangles()
         # self.surface()
-        # self.print_norm()
-        self.box_planes()
-        # self.part3()
+        self.print_norm()
+        # self.box_planes()
+        self.intersection()
+        self.print_intersection()
         self.axis.set_xlabel('X')
         self.axis.set_ylabel('Y')
         self.axis.set_zlabel('Z')
 
         self.axis.legend()
-        # plt.xlim(5, 15)
-        # plt.ylim(-5, 5)
+        plt.xlim(5, 15)
+        plt.ylim(-5, 5)
         plt.show()
