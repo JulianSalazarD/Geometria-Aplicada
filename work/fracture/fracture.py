@@ -28,11 +28,9 @@ class Fracture:
         self.max_value = 0
         self.x_axis = None
         self.y_axis = None
-        self.squares = None
-        self.color_s = None
-        self.mp_s = None
         self.M_size = None
         self.face = []
+        self.normal_vertex = None
         self.points = np.array(
                     [[0, 1, 2, 3],
                     [0, 1, 4, 5],
@@ -135,7 +133,7 @@ class Fracture:
             color = np.random.rand(1, 3)
             self.color_m = np.concatenate((self.color_m, np.full((20, 3), color)))
 
-    def print_points(self):
+    def plot_points(self):
         axis = Fracture.new_plot()
         self.build_box(axis)
 
@@ -182,7 +180,7 @@ class Fracture:
         self.tri = np.array(self.tri)
 
 
-    def print_triangles(self):
+    def plot_triangles(self):
         axis = Fracture.new_plot()
         self.build_box(axis)
 
@@ -216,7 +214,7 @@ class Fracture:
             if i > 0:
                 aux = np.dot(self.normal[i], self.normal[i - 1])
 
-    def print_normals(self):
+    def plot_normals(self):
         axis = Fracture.new_plot()
         self.build_box(axis)
 
@@ -234,6 +232,17 @@ class Fracture:
         for p in self.points:
             p1, p2, p3 = self.vertex[p[0]], self.vertex[p[1]], self.vertex[p[2]]
             self.face.append(Plane.from_points(p1,p2,p3))
+
+    def get_normal_vertex(self):
+        self.normal_vertex = [[] for _ in range(self.M.shape[0])]
+        for i, n in enumerate(self.normal):
+            for j in self.tri[i]:
+                self.normal_vertex[j].append(n)
+
+        for i in range(len(self.normal_vertex)):
+            self.normal_vertex[i] = np.mean(self.normal_vertex[i], axis=0)
+
+        self.normal_vertex = np.array(self.normal_vertex)
 
     @staticmethod
     def make_line(point, vector):
@@ -296,9 +305,9 @@ class Fracture:
         """
 
         self.inter = []
-        for i in range(self.normal.shape[0]):
-            mp = np.mean(self.M[self.tri[i]], axis=0)
-            v = self.normal[i]
+        for i in range(self.normal_vertex.shape[0]):
+            mp = self.M[i] # np.mean(self.M[self.tri[i]], axis=0)
+            v = self.normal_vertex[i]
             if np.any(np.isnan(v)):
                 self.inter.append(v)
                 continue
@@ -306,80 +315,29 @@ class Fracture:
             self.inter.append(self.intersection_plane_line(line, mp, v))
         
         self.inter = np.array(self.inter)
-        self.refactor_intersections()
 
-    def refactor_intersections(self):
-        inter_tmp = []
-        for i in range(int(len(self.inter)/40)):
-            tmp = self.inter[i*40:i*40+40]
-            
-            # Separar los elementos en índices impares y pares
-            odd_indices = [tmp[j] for j in range(len(tmp)) if j % 2 != 0]
-            even_indices = [tmp[j] for j in range(len(tmp)) if j % 2 == 0]
-            
-            # Agregar primero los impares y luego los pares a inter_tmp
-            inter_tmp.extend(odd_indices)
-            inter_tmp.extend(even_indices)
-
-        self.inter = np.array(inter_tmp)
-
-    def print_intersections(self):
+    def plot_intersections(self):
         """
             Añade los puntos de intersección al gráfico.
         """
         axis = Fracture.new_plot()
         self.build_box(axis)
-        axis.scatter(self.inter[:, 0], self.inter[:, 1], self.inter[:, 2], color=self.color_t, s=2)
+        
+        for i in range(self.size):
+            m = self.inter[i * 20:i * 20 + 20]
+            axis.scatter(m[:, 0], m[:, 1], m[:, 2], color=self.color_m[i], s=2)
 
         self.config_plot(axis, "Intersections")
 
-    def get_squares(self):
-        """
-            Calcula los cuadrados a partir de los puntos de intersección y los guarda en la lista squares.
-        """
-
-        self.squares = []
-        for i in range(len(self.inter) - 20):
-            if (i+1) % 20 == 0:
-                self.squares.append(np.array([i, i-19, i+20, i+1]))
-            else:
-                self.squares.append(np.array([i, i+1, i+20, i+21]))
-
-        self.squares = np.array(self.squares)
-
-    
-    def color_squares(self):
-        self.color_s = []
-        for i in self.squares:
-            self.color_s.append((self.color_t[i[0]] + self.color_t[i[1]] + self.color_t[i[2]] + self.color_t[i[3]]) / 4) 
-        self.color_s = np.array(self.color_s)
-
-    def print_squares(self, axis):
-        """
-            Grafica los cuadrados.
-        """
-        for square in self.squares:
-            s = [self.inter[square[0]], self.inter[square[1]], self.inter[square[3]], self.inter[square[2]], self.inter[square[0]]]
-            axis.plot([v[0] for v in s], [v[1] for v in s], [v[2] for v in s], color="b")
-
-    def square_prom(self):
-        """
-            Calcula el punto promedio de cada cuadrado y los guarda en la lista mp_s.
-        """
-        self.mp_s = []
-        for i in self.squares:
-            self.mp_s.append(np.mean(self.inter[i], axis=0))
-        self.mp_s = np.array(self.mp_s)
-
-    def print_squares_prom(self):
-        """
-            Añade los puntos promedio de los cuadrados al gráfico.
-        """
+    def plot_surface_triangles(self):
         axis = Fracture.new_plot()
         self.build_box(axis)
-        self.print_squares(axis)
-        axis.scatter(self.mp_s[:, 0], self.mp_s[:, 1], self.mp_s[:, 2],s=1, color=self.color_s)
-        self.config_plot(axis, "Squares")
+        
+        for s in range(len(self.tri)):
+            triangle = np.array([self.inter[self.tri[s][0]], self.inter[self.tri[s][1]], self.inter[self.tri[s][2]], self.inter[self.tri[s][0]]])
+            axis.plot(triangle[:, 0], triangle[:, 1], triangle[:, 2], color=self.color_t[s])
+
+        self.config_plot(axis, "surface Triangles")
 
     def build_fracture(self):
         self.limits()
@@ -388,14 +346,9 @@ class Fracture:
         self.color_points()
         self.triangularization()
         self.norm()
+        self.get_normal_vertex()
         self.plane_from_points()
         self.get_intersections()
-        self.get_squares()
-        self.color_squares()
-        self.square_prom()
-
-
-        # self.print_squares_prom()
 
         # plt.show()}
 
