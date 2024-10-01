@@ -1,16 +1,11 @@
 # Librerias
 import numpy as np
-from matplotlib import use
-import matplotlib.pyplot as plt
-import pandas as pd
 from skspatial.objects import Plane, Point, Vector, Line
 from skspatial.plotting import plot_3d
-
-
-use('Qt5Agg')
+import plotly.graph_objects as go
 
 class Fracture:
-    def __init__(self, M):
+    def __init__(self, M, error=0.05):
         self.inter = None
         self.color_t = None
         self.caras = None
@@ -30,6 +25,7 @@ class Fracture:
         self.y_axis = None
         self.M_size = None
         self.face = []
+        self.error = error
         self.normal_vertex = None
         self.points = np.array(
                     [[0, 1, 2, 3],
@@ -47,30 +43,29 @@ class Fracture:
     def load_data(self):
         # Carga los datos de la fractura desde un archivo de texto.
 
-        # dataset = []
-        # with open(filename, 'r') as file:
-        #     for line in file:
-        #         values = [float(value) for value in line.split()]
-        #         dataset.append(values)
-        #         self.M = np.array(dataset)
         self.M = np.array(self.M)
         self.M_size = self.M.shape
 
     @staticmethod
     def new_plot():
-        fig = plt.figure()
-        return fig.add_subplot(111, projection='3d')
+        return go.Figure()
     
-    def config_plot(self, axis, title):
-        axis.set_xlabel('X')
-        axis.set_ylabel('Y')
-        axis.set_zlabel('Z')
-        plt.title(title)
-        plt.xlim(self.x_axis - self.max_value, self.x_axis + self.max_value)
-        plt.ylim(self.y_axis - self.max_value, self.y_axis + self.max_value)   
+    def config_plot(self, fig, title, x=2):
+        fig.update_layout(
+            title=title,
+            scene=dict(
+            xaxis_title='X',
+            yaxis_title='Y',
+            zaxis_title='Z',
+            xaxis=dict(range=[self.mp[0]- self.max_value-x, self.mp[0] + self.max_value+x]),
+            yaxis=dict(range=[self.mp[1]- self.max_value-x, self.mp[1] + self.max_value+x]),
+            zaxis=dict(range=[self.mp[2]- self.max_value-x, self.mp[2] + self.max_value+x]),
+            )
+        )
 
-    
-    def build_box(self, axis):
+        return fig
+
+    def build_box(self, fig):
         lines = [
             [0, 1], [0, 2], [0, 4],
             [1, 3], [1, 5], [2, 3],
@@ -78,12 +73,15 @@ class Fracture:
             [4, 6], [5, 7], [6, 7]
         ]
         for line in lines:
-            axis.plot(
-                [self.vertex[line[0], 0], self.vertex[line[1], 0]],
-                [self.vertex[line[0], 1], self.vertex[line[1], 1]],
-                [self.vertex[line[0], 2], self.vertex[line[1], 2]],
-                color='black'
+            fig.add_trace(go.Scatter3d(
+                x=[self.vertex[line[0], 0], self.vertex[line[1], 0]],
+                y=[self.vertex[line[0], 1], self.vertex[line[1], 1]],
+                z=[self.vertex[line[0], 2], self.vertex[line[1], 2]],
+                mode='lines',
+                line=dict(color='black', width=2)
+                )
             )
+        return fig
 
     def limits(self):
         min_limits = np.min(self.M, axis=0)
@@ -114,9 +112,12 @@ class Fracture:
         _eigenvalues, _eigenvectors = np.linalg.eig(np.cov(points, rowvar=False))
         points = np.dot(points, _eigenvectors)
 
+        self.eigenvalues = _eigenvalues
+        self.eigenvectors = _eigenvectors
+
         # Calcula los límites de la caja en el nuevo sistema de coordenadas
-        min_limits = np.min(points, axis=0)
-        max_limits = np.max(points, axis=0)
+        min_limits = np.min(points, axis=0) - self.error
+        max_limits = np.max(points, axis=0) + self.error
 
         # Crear puntos de los límites de la caja en el sistema transformado
         self.vertex = np.array(np.meshgrid([min_limits[0], max_limits[0]], [min_limits[1], max_limits[1]],
@@ -134,12 +135,21 @@ class Fracture:
             self.color_m = np.concatenate((self.color_m, np.full((20, 3), color)))
 
     def plot_points(self):
-        axis = Fracture.new_plot()
-        self.build_box(axis)
 
-        axis.scatter(self.M[:, 0], self.M[:, 1], self.M[:, 2], color=self.color_m, s=2)
+        fig = Fracture.new_plot()
+        self.build_box(fig)
 
-        self.config_plot(axis, "Points")
+        fig.add_trace(go.Scatter3d(
+            x=self.M[:, 0],
+            y=self.M[:, 1],
+            z=self.M[:, 2],
+            mode='markers',
+            marker=dict(
+                color=self.color_m,
+                size=2
+            )
+        ))
+        return self.config_plot(fig, "Points")
 
     def triangularization(self):
         """
@@ -179,16 +189,23 @@ class Fracture:
         self.color_t = np.array(self.color_t)
         self.tri = np.array(self.tri)
 
-
     def plot_triangles(self):
-        axis = Fracture.new_plot()
-        self.build_box(axis)
+
+        fig = Fracture.new_plot()
+        self.build_box(fig)
 
         for s in range(self.tri.shape[0]):
             triangle = np.array([self.M[self.tri[s][0]], self.M[self.tri[s][1]], self.M[self.tri[s][2]], self.M[self.tri[s][0]]])
-            axis.plot(triangle[:, 0], triangle[:, 1], triangle[:, 2], color=self.color_t[s])
+            fig.add_trace(go.Scatter3d(
+                x=triangle[:, 0],
+                y=triangle[:, 1],
+                z=triangle[:, 2],
+                mode='lines',
+                line=dict(color=self.color_t[s])
+            ))
 
-        self.config_plot(axis, "Triangles")
+        self.config_plot(fig, "Triangles")
+        return fig
 
     def norm(self):
         self.isdegenerate = []
@@ -215,15 +232,47 @@ class Fracture:
                 aux = np.dot(self.normal[i], self.normal[i - 1])
 
     def plot_normals(self):
-        axis = Fracture.new_plot()
-        self.build_box(axis)
+    
+        fig = Fracture.new_plot()
+        self.build_box(fig)
 
         for i in range(self.normal.shape[0]):
             mp = np.mean(self.M[self.tri[i]], axis=0)
-            v = 0.3 * self.normal[i]
-            axis.quiver(mp[0], mp[1], mp[2], v[0], v[1], v[2], color='b')
+            v = self.normal[i]
+            fig.add_trace(go.Cone(
+                x=[mp[0]],
+                y=[mp[1]],
+                z=[mp[2]],
+                u=[v[0]],
+                v=[v[1]],
+                w=[v[2]],
+                colorscale=[[0, 'blue'], [1, 'blue']],
+                showscale=False
+            ))
 
-        self.config_plot(axis, "Normals")
+        self.config_plot(fig, "Normals")
+        return fig
+
+    def plot_normals_vertex(self):
+
+        fig = Fracture.new_plot()
+        self.build_box(fig)
+
+        for i in range(self.normal_vertex.shape[0]):
+            v = self.normal_vertex[i]
+            fig.add_trace(go.Cone(
+                x=[self.M[i][0]],
+                y=[self.M[i][1]],
+                z=[self.M[i][2]],
+                u=[v[0]],
+                v=[v[1]],
+                w=[v[2]],
+                colorscale=[[0, 'blue'], [1, 'blue']],
+                showscale=False
+            ))
+        
+        self.config_plot(fig, "Normals Vertex")
+        return fig
 
     def plane_from_points(self):
         """
@@ -257,7 +306,6 @@ class Fracture:
             - Líne
         """
         return Line(point=point, direction=vector)
-    
 
     @staticmethod
     def is_direction(pi, pf, vd):
@@ -320,24 +368,45 @@ class Fracture:
         """
             Añade los puntos de intersección al gráfico.
         """
-        axis = Fracture.new_plot()
-        self.build_box(axis)
+
+
+        fig = Fracture.new_plot()
+        self.build_box(fig)
         
         for i in range(self.size):
             m = self.inter[i * 20:i * 20 + 20]
-            axis.scatter(m[:, 0], m[:, 1], m[:, 2], color=self.color_m[i], s=2)
+            fig.add_trace(go.Scatter3d(
+                x=m[:, 0],
+                y=m[:, 1],
+                z=m[:, 2],
+                mode='markers',
+                marker=dict(
+                    color=self.color_m[i],
+                    size=2
+                )
+            ))
 
-        self.config_plot(axis, "Intersections")
+        self.config_plot(fig, "Intersections")
+        return fig
 
     def plot_surface_triangles(self):
-        axis = Fracture.new_plot()
-        self.build_box(axis)
+
+        fig = Fracture.new_plot()
+        self.build_box(fig)
         
         for s in range(len(self.tri)):
             triangle = np.array([self.inter[self.tri[s][0]], self.inter[self.tri[s][1]], self.inter[self.tri[s][2]], self.inter[self.tri[s][0]]])
-            axis.plot(triangle[:, 0], triangle[:, 1], triangle[:, 2], color=self.color_t[s])
+            fig.add_trace(go.Scatter3d(
+                x=triangle[:, 0],
+                y=triangle[:, 1],
+                z=triangle[:, 2],
+                mode='lines',
+                line=dict(color=self.color_t[s])
+            ))
 
-        self.config_plot(axis, "surface Triangles")
+        self.config_plot(fig, "surface Triangles")
+
+        return fig
 
     def build_fracture(self):
         self.limits()
@@ -350,9 +419,3 @@ class Fracture:
         self.plane_from_points()
         self.get_intersections()
 
-        # plt.show()}
-
-    def print_fracture(self, axis):
-        self.print_squares(axis)
-        axis.scatter(self.mp_s[:, 0], self.mp_s[:, 1], self.mp_s[:, 2],s=1, color=self.color_s)
-        self.config_plot(axis, "Squares")
